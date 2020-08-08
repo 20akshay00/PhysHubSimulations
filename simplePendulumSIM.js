@@ -4,6 +4,8 @@ let Wsim = W * 0.69
 let Hsim = H
 let Wplot = 0.25 * W
 let Hplot = 0.4 * H
+let timestep = 0
+let numP = 0
 
 let mSlider, lSlider, aSlider, gSlider, bSlider, checkbox1, sSlider, fSlider;
 let par = {
@@ -18,6 +20,7 @@ let par = {
   radius: 30,
   b: 0
 };
+
 
 function setup() {
   let bgCanvas = createCanvas(W, H)
@@ -109,7 +112,7 @@ function setup() {
   fSlider = fSliderContainer['slider'];
   fSliderContainer['valueLabel'].innerHTML = fSlider.value;
   fSliderContainer['label'].innerHTML = "Speed";
-  [fSlider.min, fSlider.max, fSlider.step, fSlider.value] = [1, 10000, 5, 1000]
+  [fSlider.min, fSlider.max, fSlider.step, fSlider.value] = [1, 5000, 5, 1000]
   fSlider.oninput = () => {
     fSliderContainer["valueLabel"].innerHTML = Number(fSlider.value).toFixed(2)
   }
@@ -125,6 +128,17 @@ function setup() {
   plotCanvas.noFill()
   plotCanvas.rect(0, 0, Wplot, Hplot)
 
+  plot1 = new GPlot(plotCanvas);
+  plot1.setLineColor(255);
+  plot1.setBoxBgColor(20);
+  plot1.setFontColor(255);
+
+  plot1.setPos(0, 0);
+  plot1.setMar(10, 10, 10, 10);
+  plot1.setOuterDim(Wplot - 5, Hplot - 5);
+  plot1.setAxesOffset(4);
+  plot1.setTicksLength(4);
+  plot1.setTitleText("Energy vs. time")
 }
 
 function draw() {
@@ -145,30 +159,55 @@ function draw() {
   simCanvas.strokeWeight(1)
   simCanvas.ellipse(0, 0, 15, 15)
 
-  //pendulum
+  //scaling
   simCanvas.scale(sSlider.value)
   simCanvas.stroke(255)
   simCanvas.fill(20)
   simCanvas.strokeWeight(2 / sSlider.value)
+
+  //vertical normal
+  simCanvas.drawingContext.setLineDash([5 / sSlider.value]); // set the "dashed line" mode
+  simCanvas.line(0, 15 / sSlider.value, 0, 0.5 * par.length); // draw the line
+  simCanvas.drawingContext.setLineDash([]); // reset into "solid line" mode
+
+  //pendulum
   simCanvas.line(0, 0, par.length * sin(par.theta), par.length * cos(par.theta))
 
   simCanvas.ellipse(par.length * sin(par.theta), par.length * cos(par.theta), par.radius / sSlider.value, par.radius / sSlider.value)
 
   simCanvas.pop()
-  image(simCanvas, 0, 0)
+  image(simCanvas, 0, 0);
+
+
+  //plotting Updates
+  plot1.addPoint(new GPoint(timestep * par.dt, 0.5 * par.mass * par.omega ** 2 * par.length ** 2));
+
+  plot1.beginDraw();
+  plot1.drawBox();
+  plot1.drawXAxis();
+  plot1.drawYAxis();
+  plot1.drawTitle();
+  plot1.drawLines();
+  plot1.endDraw();
+
+  numP++;
+  if (numP > 500) {
+    plot1.removePoint(0);
+  }
 
   //plotting window toggle
   if (checkbox1.checked) {
     image(plotCanvas, Wsim - Wplot - 30, 30)
   }
 
+  //euler scheme to solve differential equation
   for (let i = 0; i < fSlider.value; i++) {
     par.alpha = -par.g * sin(par.theta) / par.length - par.b * par.omega * par.length / par.mass;
     par.omega += par.alpha * par.dt;
     par.theta += par.omega * par.dt;
+    timestep++
   }
 
-  console.log(mouseX, mouseY)
 }
 
 function mouseDragged() {
